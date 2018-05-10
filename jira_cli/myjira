@@ -1,0 +1,576 @@
+#! /usr/bin/env python
+
+'''
+This script connects to Jira, using the REST API.
+The creation and updating of a Jira issue is faster
+through the REST API, than through the web interface.
+'''
+
+import configparser
+from argparse import ArgumentParser, RawTextHelpFormatter
+from getpass import getpass
+from jira import exceptions as jira_err
+from jira import JIRA
+from oauthlib.oauth1 import SIGNATURE_RSA
+from os import mkdir, path
+from requests_oauthlib import OAuth1Session
+from sys import argv, stdin
+
+# Jira base URL
+JIRA_SERVER = '<JIRA_BASE_URL>'
+
+# Variable setting for path and configuration file
+HOME_DIR = path.expanduser('~/')
+JIRA_PATH = HOME_DIR + '.myjira/'
+JIRA_CONF = JIRA_PATH + 'jira.cfg'
+RSA_PRIV_KEY = JIRA_PATH + 'myjira.pem'
+
+# Needed for OAuth authentication
+CONSUMER_KEY = 'OAuth'
+
+# Creating Documentation Strings (docstrings) for argparse
+my_description = '''
+Script using Jira's REST API for issue creation.
+Along with creation, this script can get Jira information,
+assign issues, and alter the issue status.
+
+Login options are 'basic' or 'oauth', storing your credentials
+in the 'jira.cfg' configuration file.
+
+NOTICE: storing your Jira password (plaintext) is OPTIONAL
+
+'''
+
+EXAMPLES = '''
+EXAMPLES
+
+== LOGIN ==
+
+Upate login credentials, and authentication method
+(basic for un/pw, oauth for tokens)
+
+    {0} --login basic
+
+ -or-
+
+    {0} --login oauth
+
+
+
+== JIRA ISSUE INFO ==
+
+View Jira issue information
+
+    {0} -j TEST-1
+
+    URL: http://{1}/browse/TEST-1
+    Title: My First Automated Jira Issue
+    Reporter: Draik
+    Assignee: None
+    Status: Done
+
+
+
+== ISSUE CREATION ==
+
+Create a task in the default queue
+
+    {0} -t 'Epilogue Sample'
+
+    New task issue created successfully: TEST-10
+    URL: http://{1}/browse/TEST-10
+
+
+Specify issue type, project queue, title, and assignee
+
+    {0} -i epic -q TEST -t 'Title Here' -a bsmith
+
+
+Create a sub-task issue
+
+    {0} -p TEST-3 -t 'Sub-Task Title Here'
+
+
+
+== STATUS CHANGE ==
+
+Change issue status between 'open', 'in progress', 'done', etc
+
+    {0} -j TEST-2 -s
+
+    Current status: DONE
+
+     ID - Status
+     31 - In Progress
+     41 - Done
+     51 - Open
+
+    Enter status ID: <user_input>
+
+
+
+Change issue by specifying the status ID
+
+    {0} -j TEST-2 -s 41
+
+    TEST-2 changed to DONE
+
+
+
+== COMMENTING ==
+
+Add a comment to the issue; press ^d (CTRL+d) when done
+
+    {0} -j TEST-2 -c
+
+
+
+== ASSIGNING JIRA ISSUE ==
+
+Update Jira issue with assignee
+
+    {0} -j TEST2 -a bsmith
+
+
+
+'''.format(path.basename(argv[0]), JIRA_SERVER)
+
+# Initialize configparser
+config = configparser.ConfigParser()
+
+
+# Read a file, and return its contents
+def read(file_path):
+    with open(file_path) as f:
+        return f.read()
+
+
+# Main function for running this script
+def main():
+    arguments()
+
+
+# Check if the configuration file exists
+def check_conf():
+    if not path.isfile(JIRA_CONF):
+        try:
+            mkdir(JIRA_PATH, 0700)
+        except OSError:
+            pass
+        manage_conf('new')
+
+
+# Create or update configuration file
+def manage_conf(TYPE):
+    if TYPE == 'new':
+        setup_conf()
+        print "New configuration file created."
+        while True:
+            new_config = raw_input("Setup [B]asic, [O]auth, or [N]one? ")
+            if new_config.upper() == 'B':
+                basic_conf()
+                break
+            elif new_config.upper() == 'O':
+                oauth_conf()
+                break
+            elif new_config.upper() == 'N':
+                exit("Cannot connect without credentials.")
+            else:
+                print "Invalid option: {}\n".format(new_config)
+    elif TYPE == 'basic':
+        basic_conf()
+    elif TYPE == 'oauth':
+        oauth_conf()
+
+
+# Configuration file creator
+def setup_conf():
+    with open(JIRA_CONF, 'w+') as my_conf:
+        try:
+            config.add_section('login')
+            config.add_section('basic')
+            config.add_section('oauth')
+        except configparser.DuplicateSectionError:
+            pass
+        config.set('login', 'auth', 'basic')
+        config.set('basic', 'username', '')
+        config.set('basic', 'password', '')
+        config.set('oauth', 'oauth_token', '')
+        config.set('oauth', 'oauth_token_secret', '')
+        config.write(my_conf)
+
+
+# Setup username and password authentication with 'basic' auth
+def basic_conf():
+    check_conf()
+    with open(JIRA_CONF, 'w+') as my_conf:
+        try:
+            config.add_section('login')
+            config.add_section('basic')
+        except configparser.DuplicateSectionError:
+            pass
+        config.set('login', 'auth', 'basic')
+        username = raw_input("Username: ")
+        password = getpass()
+        config.set('basic', 'username', username)
+        print "\n(!) Storing password as plain text in jira.cfg file"
+        save_pass = raw_input("Proceed? (Y/n) ")
+        if save_pass.upper() == 'Y':
+            print "Storing password"
+            config.set('basic', 'password', password)
+        else:
+            config.set('basic', 'password', '')
+        config.write(my_conf)
+
+    return username, password
+
+
+# Setup OAuth tokens with 'oauth' authentication
+def oauth_conf():
+    if not path.isfile(RSA_PRIV_KEY):
+        exit("ERROR: Cannot oauth without RSA private key")
+    check_conf()
+
+    oauth_config = config.read(JIRA_CONF)
+    oauth_set_t = config.get('oauth', 'oauth_token')
+    oauth_set_ts = config.get('oauth', 'oauth_token_secret')
+    if oauth_set_t != '' and oauth_set_ts != '':
+        print "OAuth Token and Token Secret are NOT empty"
+        new_oauth = raw_input("New OAuth tokens? (Y/n): ")
+        if new_oauth.upper == 'Y':
+            t, t_s = oauth_setup()
+            with open(JIRA_CONF, 'w+') as my_conf:
+                try:
+                    config.add_section('login')
+                    config.add_section('oauth')
+                except configparser.DuplicateSectionError:
+                    pass
+                config.set('login', 'auth', 'oauth')
+                config.set('oauth', 'oauth_token', t)
+                config.set('oauth', 'oauth_token_secret', t_s)
+                config.write(my_conf)
+        else:
+            print "Update to 'oauth' login authorization",
+            with open(JIRA_CONF, 'w+') as my_conf:
+                config.set('login', 'auth', 'oauth')
+                config.write(my_conf)
+            print "SUCCESSFUL"
+
+
+# OAuth 3-Legged OAuth (3LO) dance party
+def oauth_setup():
+    # Jira OAuth verifier
+    VERIFIER = 'my_jira_verifier'
+
+    # Read the RSA private key
+    RSA_KEY = read(RSA_PRIV_KEY)
+
+    # Jira OAuth URL variables
+    REQUEST_TOKEN_URL = JIRA_SERVER + '/plugins/servlet/oauth/request-token'
+    AUTHORIZE_URL = JIRA_SERVER + '/plugins/servlet/oauth/authorize'
+    ACCESS_TOKEN_URL = JIRA_SERVER + '/plugins/servlet/oauth/access-token'
+
+    # Step 1: Get a request token
+    print "STEP 1: GET REQUEST TOKEN"
+    oauth = OAuth1Session(CONSUMER_KEY,
+                          signature_method=SIGNATURE_RSA,
+                          rsa_key=RSA_KEY)
+    try:
+        request_token = oauth.fetch_request_token(REQUEST_TOKEN_URL)
+    except ValueError as e:
+        exit("ERROR: {}".format(e))
+
+    resource_owner_key = request_token['oauth_token']
+    resource_owner_secret = request_token['oauth_token_secret']
+
+    print " oauth_token={}".format(resource_owner_key)
+    print " oauth_token_secret={}".format(resource_owner_secret)
+    print "\n"
+
+    # Step 2: Get the end-user's authorization
+    print("STEP 2: AUTHORIZATION")
+    print(" Visit the following URL to provide authorization:")
+    print(" {}?oauth_token={}".format(AUTHORIZE_URL,
+                                      request_token['oauth_token']))
+    raw_input("\nPress any key to continue...\n")
+
+    oauth = OAuth1Session(CONSUMER_KEY,
+                          resource_owner_key=resource_owner_key,
+                          resource_owner_secret=resource_owner_secret,
+                          rsa_key=RSA_KEY,
+                          signature_method=SIGNATURE_RSA,
+                          verifier=VERIFIER)
+
+    try:
+        access_token = oauth.fetch_access_token(ACCESS_TOKEN_URL)
+    except ValueError as e:
+        exit("\nERROR: {}".format(e))
+
+    # Step 3: Get the access token
+    print("STEP 3: GET ACCESS TOKEN")
+    jira_auth_token = access_token['oauth_token']
+    jira_auth_token_secret = access_token['oauth_token_secret']
+    print(" oauth_token={}".format(jira_auth_token))
+    print(" oauth_token_secret={}".format(jira_auth_token_secret))
+    print("\n")
+
+    return (jira_auth_token, jira_auth_token_secret)
+
+
+# Setup authenticated connection to Jira server
+def jira_auth():
+    options = {'server': JIRA_SERVER}
+    config.read(JIRA_CONF)
+    auth_type = config.get('login', 'auth')
+    if auth_type == 'basic':
+        basic_user = config.get('basic', 'username')
+        basic_pass = config.get('basic', 'password')
+        if basic_user == '':
+            basic_user, basic_pass = basic_conf()
+        elif basic_pass == '':
+            basic_pass = getpass()
+
+        try:
+            jira = JIRA(options,
+                        max_retries=1,
+                        basic_auth=(basic_user,
+                                    basic_pass))
+        except jira_err.JIRAError as e:
+            exit("ERROR: INVALID LOGIN: Check username and password")
+    elif auth_type == 'oauth':
+        RSA_KEY = read(RSA_PRIV_KEY)
+        oauth_t = config.get('oauth', 'oauth_token')
+        oauth_ts = config.get('oauth', 'oauth_token_secret')
+        try:
+            jira = JIRA(options,
+                        max_retries=1,
+                        oauth={'access_token': oauth_t,
+                               'access_token_secret': oauth_ts,
+                               'consumer_key': CONSUMER_KEY,
+                               'key_cert': RSA_KEY})
+        except jira_err.JIRAError as e:
+            exit("ERROR: INVALID LOGIN: Check OAuth tokens and permissions")
+    return jira
+
+
+# Change the Jira issue status
+def jira_status(JIRA, STATUS):
+    jira = jira_auth()
+    if STATUS == 0:
+        try:
+            status = jira.issue(JIRA).fields.status.name
+            print "Current status: {}\n".format(status.upper())
+        except jira_err.JIRAError as e:
+            exit("ERROR: {}".format(e.text))
+
+        print " ID - Status"
+        for stats in jira.transitions(JIRA):
+            print "{} - {}".format(stats['id'].rjust(3), stats['name'])
+        status_id = raw_input("\nEnter status ID: ")
+    else:
+        status_id = STATUS
+
+    try:
+        jira.transition_issue(JIRA, status_id)
+    except jira_err.JIRAError as e:
+        exit("ERROR: {}".format(e.text))
+
+    reload_jira = jira.issue(JIRA)
+    new_status = reload_jira.fields.status.name
+    print "{} changed to {}\n".format(JIRA.upper(),
+                                      new_status.upper())
+
+
+# Update assignee to Jira issue
+def jira_assignee(ASSIGNEE, JIRA):
+    jira = jira_auth()
+    try:
+        jira.assign_issue(JIRA, ASSIGNEE)
+        print "{} successfully assigned to {}".format(JIRA.upper(),
+                                                      ASSIGNEE)
+    except jira_err.JIRAError as e:
+        exit("ERROR: {}".format(e.text))
+
+
+# Add a comment to the Jira issue
+def jira_comment(JIRA):
+    jira = jira_auth()
+    try:
+        jira.issue(JIRA)
+    except jira_err.JIRAError as e:
+        exit("ERROR: {}".format(e.text))
+
+    print "Enter your comment below. CTRL+D on new line to submit:\n\n"
+    try:
+        comment = stdin.read()
+        jira.add_comment(JIRA, comment)
+        print "\n\nComment added successfully!"
+    except jira_err.JIRAError as e:
+        exit("ERROR: {}".format(e.text))
+
+
+# Create a Jira sub-task issue
+def jira_subtask(ASSIGNEE, PARENT, TITLE):
+    jira = jira_auth()
+    parent_key = jira.issue(PARENT).fields.project.key
+    try:
+        sub_task = jira.create_issue(assignee={'name': ASSIGNEE},
+                                     issuetype={'name': 'Sub-task'},
+                                     parent={'key': PARENT},
+                                     project={'key': parent_key},
+                                     summary=TITLE)
+    except jira_err.JIRAError as e:
+        exit("ERROR: {}".format(e.text))
+
+    print "New sub-task issue created successfully: {}".format(sub_task.key)
+    print "URL: {}/browse/{}\n".format(JIRA_SERVER,
+                                       sub_task.key)
+    print "TITLE: {}".format(sub_task.fields.summary)
+    print "STATUS: {}".format(sub_task.fields.status.name)
+
+
+# Create a Jira issue
+def jira_issue(ASSIGNEE, ISSUE, NAME, QUEUE, TITLE):
+    jira = jira_auth()
+    if ISSUE == 'Task':
+        try:
+            new_jira = jira.create_issue(assignee={'name': ASSIGNEE},
+                                         issuetype={'name': ISSUE},
+                                         project={'key': QUEUE},
+                                         summary=TITLE)
+        except jira_err.JIRAError as e:
+            exit("ERROR: {}".format(e.text))
+    elif ISSUE == 'Epic':
+        try:
+            new_jira = jira.create_issue(assignee={'name': ASSIGNEE},
+                                         customfield_10102=NAME,
+                                         issuetype={'name': ISSUE},
+                                         project={'key': QUEUE},
+                                         summary=TITLE)
+        except jira_err.JIRAError as e:
+            exit("ERROR: {}".format(e.text))
+    print "New {} issue created successfully: {}".format(ISSUE.lower(),
+                                                         new_jira.key)
+    print "URL: {}/browse/{}\n".format(JIRA_SERVER,
+                                       new_jira.key)
+
+
+# Get Jira issue information
+def jira_info(JIRA):
+    jira = jira_auth()
+    try:
+        issue = jira.issue(JIRA)
+    except jira_err.JIRAError as e:
+        exit("ERROR: {}: {}".format(JIRA,
+                                    e.text))
+    print(("URL: {}/browse/{}\n" +
+           "Title: {}\n" +
+           "Reporter: {}\n" +
+           "Assignee: {}\n" +
+           "Status: {}").format(JIRA_SERVER,
+                                JIRA.upper(),
+                                issue.fields.summary,
+                                issue.fields.reporter,
+                                issue.fields.assignee,
+                                issue.fields.status.name))
+
+
+# The main menu of arguments
+def main_menu():
+    parser = ArgumentParser(conflict_handler='resolve',
+                            description=my_description,
+                            formatter_class=RawTextHelpFormatter,
+                            usage="%(prog)s [options]")
+
+    parser.add_argument('-a',
+                        default='',
+                        dest='assignee',
+                        help='Assign Jira issue to a user')
+    parser.add_argument('-c',
+                        action='store_true',
+                        dest='comment',
+                        help='Comment on the Jira issue')
+    parser.add_argument('-i',
+                        choices=['epic', 'task'],
+                        default='Task',
+                        dest='issue',
+                        help='Issue type as Epic or Task')
+    parser.add_argument('-j',
+                        dest='jira',
+                        help='Specify the Jira issue')
+    parser.add_argument('-l',
+                        choices=['basic', 'oauth'],
+                        const='basic',
+                        dest='login',
+                        nargs='?',
+                        help='Update login method between basic or oauth')
+    parser.add_argument('-n',
+                        default='',
+                        dest='name',
+                        help='Specify Epic Name when creating Epic issue')
+    parser.add_argument('-p',
+                        dest='parent',
+                        help='Parent Jira issue for creating sub-task issue')
+    parser.add_argument('-q',
+                        default='TEST',
+                        dest='queue',
+                        help='Specify the Jira project')
+    parser.add_argument('-s',
+                        const='0',
+                        dest='status',
+                        metavar='ID',
+                        nargs='?',
+                        type=int,
+                        help='Set the Jira issue status')
+    parser.add_argument('-t',
+                        dest='title',
+                        help='Specify the Jira issue title')
+    parser.add_argument('--man',
+                        action='store_true',
+                        help='Print the Help menu with examples')
+
+# If no args given, exit with help menu
+    if len(argv) == 1:
+        exit(parser.print_help())
+    elif '--man' in argv:
+        print parser.print_help()
+        exit(EXAMPLES)
+    else:
+        return parser.parse_args()
+
+
+# Process the args from argparse
+def arguments():
+    args = main_menu()
+    check_conf()
+
+    if args.login:
+        manage_conf(args.login)
+    elif args.status is not None:
+        jira_status(args.jira,
+                    args.status)
+    elif args.comment:
+        jira_comment(args.jira)
+    elif args.parent:
+        jira_subtask(args.assignee,
+                     args.parent,
+                     args.title)
+    elif args.title:
+        jira_issue(args.assignee,
+                   args.issue.capitalize(),
+                   args.name,
+                   args.queue,
+                   args.title)
+    elif args.assignee:
+        jira_assignee(args.assignee,
+                      args.jira)
+    elif args.jira:
+        jira_info(args.jira)
+
+
+# Time to get the party started
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        exit("\nQuitting.")
