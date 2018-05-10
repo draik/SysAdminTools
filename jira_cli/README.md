@@ -116,3 +116,11 @@ Add a comment to the issue; press [CTRL+d] when done
     myjira -j TEST-2 -c  
 
 
+
+#### == ASSIGNING JIRA ISSUE ==
+
+Update Jira issue with assignee
+
+    myjira -j TEST2 -a bsmith
+
+
