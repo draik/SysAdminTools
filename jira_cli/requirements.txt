@@ -1,0 +1,6 @@
+configparser
+jira
+oauthlib
+pycrypto
+requests
+requests-oauthlib
