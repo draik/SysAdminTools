@@ -1,4 +1,4 @@
-MYJIRA
+MY JIRA
 ===
 
 Description
@@ -6,6 +6,15 @@ Description
 This script connects to Jira, using the REST API.  
 The creation and updating of a Jira issue is faster  
 through the REST API, than through the web interface.  
+
+
+CAVEAT
+---
+When creating an Epic issue, it requires a name entry.  
+This is NOT a named value (e.g. epic_name), but a  
+customfield value entry. In my default Jira installation,  
+the custom field is customfield_10102. If it fails to create  
+an Epic issue, it is because of this field number.  
 
 
 Usage
