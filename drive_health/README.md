@@ -3,55 +3,63 @@ DRIVE HEALTH
 
 Description
 ---
-This tool requires the installation of smartmontools onto the OS itself.  
-Once installed, installing pySMART vi pip will handle the use of smartctl.  
-At the time of this writing, pySMART is 0.3, from June 11, 2015.  
+This tool requires the installation of smartmontools onto the OS itself.
+Once installed, installing pySMART vi pip will handle the use of smartctl.
+At the time of this writing, pySMART is 0.3, from June 11, 2015.
 
 
-VARIABLES
+NOTIFICATIONS
 ---
-In order to receive email notification, or Telegram notifications, the  
-variables will need to be updated. The email sender and recipeint are all  
-that need to be changed.  Due to the nature of the content sent, be sure  
-to check the spam folder for the emails sent.  
+In order to receive email notification, or Telegram notifications, the
+variables will need to be updated.
 
-Telegram bots are quick and easy to create. Check in with the Botfather  
-for assistance; instructions here:  
+#### EMAIL
+The email sender and recipeint are all that need to be changed.
+Due to the nature of the content sent, be sure to check the spam folder
+for the emails sent.
+
+Required fields to update:
+* sender
+* receiver
+
+#### TELEGRAM
+Telegram bots are quick and easy to create. Check in with the Botfather
+for assistance; instructions here:
 
 https://core.telegram.org/bots
 
-Required fields to update:  
+Required fields to update:
 * tg_token
 * tg_chat_id
 
 
 CAVEAT
 ---
-The all_selftests() function returns None because the print statement is  
-contained within the function, providing nothing back to the call itself.  
-For this reason, there isn't a notification option set for the '-c' option.  
+The all_selftests() function returns None because the print statement is
+contained within the function, providing nothing back to the call itself.
+For this reason, there isn't a notification option set for the '-c' option.
 
-This tool **MUST** be used with sudo, in order to get drive data.  
+This tool **MUST** be used with sudo, in order to get drive data.
 
 
 Usage
 ---
 ### Help Menu
-    
-usage: dhealth.py [options]  
-    
-SMART drive health monitor tool  
-    
-optional arguments:  
-  -h, --help       show this help message and exit  
-  -c               Check PASS/FAIL self-test status  
-  -i               Info for each drive  
-  -r               Results from self-tests  
-  -t {long,short}  Perform drive self-test  
-  --notify         Send email and Telegram alert  
+
+    usage: dhealth.py [options]
+
+    SMART drive health monitor tool
+
+    optional arguments:
+    -h, --help       show this help message and exit
+    -c               Check PASS/FAIL self-test status
+    -i               Info for each drive
+    -r               Results from self-tests
+    -t {long,short}  Perform drive self-test
+    --notify         Send email and Telegram alert
 
 
-#### == CHECK DRIVE STATUS ==  
+#### == CHECK DRIVE STATUS ==
 
     sudo dhealth.py -c
 
@@ -63,7 +71,7 @@ optional arguments:
     sdf: PASS
 
 
-#### == DRIVE INFORMATION ==  
+#### == DRIVE INFORMATION ==
 
     sudo dhealth.py -i
 
@@ -113,7 +121,7 @@ optional arguments:
     }
 
 
-#### == RESULTS FROM SELF-TESTS ==  
+#### == RESULTS FROM SELF-TESTS ==
 
     sudo dhealth.py -r
 
@@ -126,6 +134,7 @@ optional arguments:
     A) ALL
     Q) Quit
     Select drive(s) to check: 5
+    sde
     ID Test_Description Status                        Left Hours  1st_Error@LBA
     1 Short offline    Completed without error       00%  5691   -
     2 Short offline    Completed without error       00%  5589   -
@@ -134,9 +143,9 @@ optional arguments:
     5 Short offline    Completed without error       00%  5477   -
 
 
-#### == TEST THE DRIVE ==  
+#### == TEST THE DRIVE ==
 
-    sudo dhealth.py -t
+    sudo dhealth.py -t short
 
     1) sda
     2) sdb
