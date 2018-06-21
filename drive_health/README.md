@@ -37,7 +37,7 @@ CAVEAT
 ---
 The all_selftests() function returns None because the print statement is  
 contained within the function, providing nothing back to the call itself.  
-For this reason, there isn't a notification option set for the '-c' option.  
+For this reason, there isn't a notification option set for the '-r' option.  
 
 This tool **MUST** be used with sudo, in order to get drive data.  
 
