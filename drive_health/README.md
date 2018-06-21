@@ -3,43 +3,43 @@ DRIVE HEALTH
 
 Description
 ---
-This tool requires the installation of smartmontools onto the OS itself.
-Once installed, installing pySMART vi pip will handle the use of smartctl.
-At the time of this writing, pySMART is 0.3, from June 11, 2015.
+This tool requires the installation of smartmontools onto the OS itself.  
+Once installed, installing pySMART vi pip will handle the use of smartctl.  
+At the time of this writing, pySMART is 0.3, from June 11, 2015.  
 
 
 NOTIFICATIONS
 ---
-In order to receive email notification, or Telegram notifications, the
-variables will need to be updated.
+In order to receive email notification, or Telegram notifications, the  
+variables will need to be updated.  
 
 #### EMAIL
-The email sender and recipeint are all that need to be changed.
-Due to the nature of the content sent, be sure to check the spam folder
-for the emails sent.
+The email sender and recipeint are all that need to be changed.  
+Due to the nature of the content sent, be sure to check the spam folder  
+for the emails sent.  
 
-Required fields to update:
+Required fields to update:  
 * sender
 * receiver
 
 #### TELEGRAM
-Telegram bots are quick and easy to create. Check in with the Botfather
-for assistance; instructions here:
+Telegram bots are quick and easy to create. Check in with the Botfather  
+for assistance; instructions here:  
 
 https://core.telegram.org/bots
 
-Required fields to update:
+Required fields to update:  
 * tg_token
 * tg_chat_id
 
 
 CAVEAT
 ---
-The all_selftests() function returns None because the print statement is
-contained within the function, providing nothing back to the call itself.
-For this reason, there isn't a notification option set for the '-c' option.
+The all_selftests() function returns None because the print statement is  
+contained within the function, providing nothing back to the call itself.  
+For this reason, there isn't a notification option set for the '-c' option.  
 
-This tool **MUST** be used with sudo, in order to get drive data.
+This tool **MUST** be used with sudo, in order to get drive data.  
 
 
 Usage
@@ -157,6 +157,5 @@ Usage
     Q) Quit
     Select drive(s) to test: 6
     sdf: Self-test started successfully
-
 
 
