@@ -9,7 +9,7 @@ Installation varies by OS, but ultimately one of the following:
 
 * `sudo apt install smartmontools`
 * `sudo yum install smartmontools`
-* Download from https://www.smartmontools.org
+* Download [smartmontools](https://www.smartmontools.org)
 
 
 CAVEAT
@@ -77,6 +77,16 @@ Usage
     sde: PASS
     sdf: PASS
 
+##### Telegram Notification Sample
+Same output as above is provided in a single message  
+
+    sda: PASS
+    sdb: PASS
+    sdc: PASS
+    sdd: PASS
+    sde: PASS
+    sdf: PASS
+
 
 #### == DRIVE INFORMATION ==
 
@@ -127,6 +137,16 @@ Usage
         }
     }
 
+##### Telegram Notification Sample
+One message received per drive  
+
+    Drive Info sda
+    model: ST1000DX002-2DV162
+    firmware: CC41
+    capacity: 1.00 TB
+    check: PASS
+    serial: Z4YEZPGK
+
 
 #### == RESULTS FROM SELF-TESTS ==
 
@@ -148,6 +168,13 @@ Usage
     3 Conveyance offlineCompleted without error       00%  5503   -
     4 Extended offline Completed without error       00%  5503   -
     5 Short offline    Completed without error       00%  5477   -
+
+##### Telegram Notification Sample
+One message per drive, contains drive name, header, and latest test result  
+
+    sde
+    ID Test_Description Status                    Left Hours  1st_Error@LBA
+    1 Short offline     Completed without error    00%  5691   -
 
 
 #### == TEST THE DRIVE ==
