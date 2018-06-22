@@ -215,7 +215,7 @@ def arguments():
                 info = []
                 for k, v in drive[dev].iteritems():
                     info.append("{}: {}".format(k, v))
-                notify_telegram("Drive Info {}".format(dev.name),
+                notify_telegram("Drive Info {}".format(dev),
                                 '\n'.join(info))
     elif args.RESULTS:
         for drive in test_results():
