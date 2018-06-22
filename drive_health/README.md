@@ -4,7 +4,9 @@ DRIVE HEALTH
 Description
 ---
 This tool provides options for the pySMART wrapper of smartmontools.  
-Thus, it requires the installation of smartmontools onto the OS itself.  
+It requires the installation of smartmontools onto the OS itself, before  
+it can be used by this tool.  
+
 Installation varies by OS, but ultimately one of the following:  
 
 * `sudo apt install smartmontools`
@@ -31,16 +33,19 @@ variables will need to be updated.
 
 #### EMAIL
 The email sender and recipeint are all that need to be changed.  
-Due to the nature of the content sent, be sure to check the spam folder  
-for the emails sent.  
+Due to the content sent, be sure to check the spam folder for the emails sent.  
+The email notification is the same as the output from the tool.  
 
 Required fields to update:  
 * sender
 * receiver
 
 #### TELEGRAM
-Telegram bots are quick and easy to create. Check in with the Botfather  
-for assistance; instructions here:  
+Telegram bots are quick and easy to create. To ensure notifications are not  
+flagged for spamming, the output may be altered or broken into smaller  
+messages. See samples below for further details.  
+
+Check in with the Botfather for bot creation assistance; instructions here:  
 
 https://core.telegram.org/bots
 
@@ -80,6 +85,7 @@ Usage
 ##### Telegram Notification Sample
 Same output as above is provided in a single message  
 
+    Drive Check
     sda: PASS
     sdb: PASS
     sdc: PASS
