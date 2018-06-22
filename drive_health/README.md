@@ -3,9 +3,25 @@ DRIVE HEALTH
 
 Description
 ---
-This tool requires the installation of smartmontools onto the OS itself.  
-Once installed, installing pySMART vi pip will handle the use of smartctl.  
-At the time of this writing, pySMART is 0.3, from June 11, 2015.  
+This tool provides options for the pySMART wrapper of smartmontools.  
+Thus, it requires the installation of smartmontools onto the OS itself.  
+Installation varies by OS, but ultimately one of the following:  
+
+* `sudo apt install smartmontools`
+* `sudo yum install smartmontools`
+* Download from https://www.smartmontools.org
+
+
+CAVEAT
+---
+This tool **MUST** be used with sudo, in order to get drive data.  
+
+
+pySMART 0.4
+---
+pySMART 0.3 was forked, then updated to better handle the `None` return  
+for the all_selftest() function. This updated version handles the output  
+as a string, which lends itself to data manipulation.  
 
 
 NOTIFICATIONS
@@ -31,15 +47,6 @@ https://core.telegram.org/bots
 Required fields to update:  
 * tg_token
 * tg_chat_id
-
-
-CAVEAT
----
-The all_selftests() function returns None because the print statement is  
-contained within the function, providing nothing back to the call itself.  
-For this reason, there isn't a notification option set for the '-r' option.  
-
-This tool **MUST** be used with sudo, in order to get drive data.  
 
 
 Usage

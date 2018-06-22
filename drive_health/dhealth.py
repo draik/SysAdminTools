@@ -96,21 +96,34 @@ def test_results():
     selection = raw_input("Select drive(s) to check: ")
 
     try:
+        devices = []
         if selection.upper() == 'A':
             for dev in devlist.devices:
                 dev.update()
-                print dev.name
-                dev.all_selftests()
+                devices.append(dev.name)
         elif selection.upper() == 'Q':
             exit('Quitting.')
         elif int(selection) in drive_menu:
             drive = '/dev/' + drive_menu[int(selection)]
             dev = pySMART.Device(drive)
             dev.update()
-            print dev.name
-            dev.all_selftests()
+            devices.append(dev.name)
+
+        return devices
+
     except ValueError:
         exit('Invalid option')
+
+
+# Get self-test results per device name (sda, sdb, etc)
+def get_results(DEVICE):
+    entries = []
+    drive = '/dev/' + DEVICE
+    dev = pySMART.Device(drive)
+    for entry in dev.all_selftests():
+        entries.append(str(entry))
+
+    return entries
 
 
 # Perform a self-test on drives
@@ -202,10 +215,18 @@ def arguments():
                 info = []
                 for k, v in drive[dev].iteritems():
                     info.append("{}: {}".format(k, v))
-                notify_telegram('Drive Info',
+                notify_telegram("Drive Info {}".format(dev.name),
                                 '\n'.join(info))
     elif args.RESULTS:
-        test_results()
+        for drive in test_results():
+            print "\n == {} ==".format(drive)
+            results = get_results(drive)
+            print '\n'.join(results)
+            if args.NOTIFY:
+                send_email('Test Results for {}'.format(drive),
+                           '\n'.join(results))
+                notify_telegram(drive,
+                                '\n'.join(results[:2]))
     elif args.TEST:
         test_drive(args.TEST)
 
@@ -218,5 +239,5 @@ if __name__ == '__main__':
         else:
             main()
     except KeyboardInterrupt:
-        exit("Quitting.")
+        exit("Exiting.")
 
